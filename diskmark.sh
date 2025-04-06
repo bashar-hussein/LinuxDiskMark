@@ -1,22 +1,24 @@
 #!/bin/bash
 
 # ====== CONFIG ======
-POOL_NAME="SMB-Pool"            # <-- Set your actual pool name
-CONTEXT="data"                  # <-- Set any context (e.g., 'boot', 'vm', etc.)
-TESTFILE="./fio_benchmark.test"
+POOL_NAME="SMB-Pool"
+CONTEXT="data"
+TESTFILE="./fio_testfile.tmp"
 TEMP_FILE="raw_${POOL_NAME}_${CONTEXT}.txt"
 FINAL_FILE="result_${POOL_NAME}_${CONTEXT}.txt"
 SIZE=1G
 RUNTIME=5
 
 # ====== HEADER ======
-echo "------------------------------------------------------------------------------" > "$FINAL_FILE"
-echo "LinuxDiskMark 1.0 (fio-based)" >> "$FINAL_FILE"
-echo "Inspired by CrystalDiskMark output style" >> "$FINAL_FILE"
-echo "------------------------------------------------------------------------------" >> "$FINAL_FILE"
-echo "* MB/s = 1,000,000 bytes/s | MiB/s = 1,048,576 bytes/s" >> "$FINAL_FILE"
-echo "* KB = 1000 bytes | KiB = 1024 bytes" >> "$FINAL_FILE"
-echo "" >> "$FINAL_FILE"
+{
+  echo "------------------------------------------------------------------------------"
+  echo "LinuxDiskMark 1.0 (fio-based)"
+  echo "Inspired by CrystalDiskMark output style"
+  echo "------------------------------------------------------------------------------"
+  echo "* MB/s = 1,000,000 bytes/s | MiB/s = 1,048,576 bytes/s"
+  echo "* KB = 1000 bytes | KiB = 1024 bytes"
+  echo
+} > "$FINAL_FILE"
 
 # ====== FIO RUNNER FUNCTION ======
 run_fio() {
@@ -27,26 +29,29 @@ run_fio() {
   local NUMJOBS=$5
   local DESC=$6
 
+  # Run fio and write raw output
   fio --name=$NAME --rw=$RW --rwmixread=50 --bs=$BS --ioengine=libaio \
       --iodepth=$QD --numjobs=$NUMJOBS --size=$SIZE --runtime=$RUNTIME \
-      --group_reporting --filename=$TESTFILE >> "$TEMP_FILE"
+      --group_reporting --filename=$TESTFILE > "$TEMP_FILE"
 
-  local R_LINE=$(grep -A1 "Run status group 0" "$TEMP_FILE" | grep "READ:" | tail -1)
-  local W_LINE=$(grep -A1 "Run status group 0" "$TEMP_FILE" | grep "WRITE:" | tail -1)
+  # Extract correct values from "READ:" and "WRITE:" in final summary
+  local R_BW=$(awk '/READ:/{for(i=1;i<=NF;i++) if($i ~ /bw=/){print $(i+1); break}}' "$TEMP_FILE")
+  local R_IOPS=$(awk '/READ:/{for(i=1;i<=NF;i++) if($i ~ /iops=/){print $(i+1); break}}' "$TEMP_FILE")
+  local W_BW=$(awk '/WRITE:/{for(i=1;i<=NF;i++) if($i ~ /bw=/){print $(i+1); break}}' "$TEMP_FILE")
+  local W_IOPS=$(awk '/WRITE:/{for(i=1;i<=NF;i++) if($i ~ /iops=/){print $(i+1); break}}' "$TEMP_FILE")
 
-  local R_BW=$(echo "$R_LINE" | awk -F'[,= ]+' '{print $(NF-6)}')
-  local R_IOPS=$(echo "$R_LINE" | awk -F'[,= ]+' '{print $(NF-3)}')
-  local W_BW=$(echo "$W_LINE" | awk -F'[,= ]+' '{print $(NF-6)}')
-  local W_IOPS=$(echo "$W_LINE" | awk -F'[,= ]+' '{print $(NF-3)}')
+  # Default if missing
+  [[ -z "$R_BW" ]] && R_BW="n/a"
+  [[ -z "$R_IOPS" ]] && R_IOPS="n/a"
+  [[ -z "$W_BW" ]] && W_BW="n/a"
+  [[ -z "$W_IOPS" ]] && W_IOPS="n/a"
 
-  [[ -z $R_BW ]] && R_BW="n/a"
-  [[ -z $R_IOPS ]] && R_IOPS="n/a"
-  [[ -z $W_BW ]] && W_BW="n/a"
-  [[ -z $W_IOPS ]] && W_IOPS="n/a"
-
-  printf "%-40s\n" "[$DESC]" >> "$FINAL_FILE"
-  printf "  READ : %8sB/s [%8s IOPS] <approx>\n" "$R_BW" "$R_IOPS" >> "$FINAL_FILE"
-  printf "  WRITE: %8sB/s [%8s IOPS] <approx>\n\n" "$W_BW" "$W_IOPS" >> "$FINAL_FILE"
+  # Write result to summary file
+  {
+    printf "%-40s\n" "[$DESC]"
+    printf "  READ : %8s [%8s IOPS]\n" "$R_BW" "$R_IOPS"
+    printf "  WRITE: %8s [%8s IOPS]\n\n" "$W_BW" "$W_IOPS"
+  } >> "$FINAL_FILE"
 }
 
 # ====== RUN TESTS ======
