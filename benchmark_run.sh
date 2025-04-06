@@ -1,12 +1,17 @@
 #!/bin/bash
 
-# ====== CONFIG ======
-POOL="SMB-Pool"
-CONTEXT="data"
+# ====== DETECT POOL NAME FROM PATH ======
+CURRENT_PATH=$(pwd)
+POOL=$(echo "$CURRENT_PATH" | cut -d'/' -f3)
+
+# ====== ASK FOR USER INPUT ======
+read -p "Enter context label (e.g. data, backup, vm): " CONTEXT
+read -p "Enter test file size (e.g. 1G, 500M): " SIZE
+read -p "Enter runtime in seconds (e.g. 5, 10): " RUNTIME
+
+# ====== FILE SETUP ======
 OUTPUT="raw_${POOL}_${CONTEXT}.txt"
 TESTFILE="./fio_testfile.tmp"
-SIZE="1G"
-RUNTIME=5
 
 # ====== TEST MATRIX ======
 declare -a tests=(
@@ -17,7 +22,7 @@ declare -a tests=(
 )
 
 # ====== RUN TESTS ======
-echo "Running benchmarks..." > "$OUTPUT"
+echo "Running benchmarks on pool [$POOL]..." > "$OUTPUT"
 
 for test in "${tests[@]}"; do
   set -- $test
@@ -37,4 +42,4 @@ done
 # ====== CLEANUP ======
 rm -f "$TESTFILE"
 
-echo "Raw benchmark saved to $OUTPUT"
+echo "Done. Raw benchmark saved to $OUTPUT"
