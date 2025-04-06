@@ -4,14 +4,29 @@
 CURRENT_PATH=$(pwd)
 POOL=$(echo "$CURRENT_PATH" | cut -d'/' -f3)
 
-# ====== ASK FOR USER INPUT ======
+# ====== USER INPUT ======
 read -p "Enter context label (e.g. data, backup, vm): " CONTEXT
 read -p "Enter test file size (e.g. 1G, 500M): " SIZE
 read -p "Enter runtime in seconds (e.g. 5, 10): " RUNTIME
 
-# ====== FILE SETUP ======
+# ====== FILE PATHS ======
 OUTPUT="raw_${POOL}_${CONTEXT}.txt"
 TESTFILE="./fio_testfile.tmp"
+
+# ====== PREVIEW SUMMARY ======
+echo
+echo "Ready to run benchmark with the following settings:"
+echo "--------------------------------------------------"
+echo "POOL        : $POOL"
+echo "CONTEXT     : $CONTEXT"
+echo "FILE SIZE   : $SIZE"
+echo "RUNTIME     : $RUNTIME seconds"
+echo "TEST FILE   : $TESTFILE"
+echo "OUTPUT FILE : $(realpath "$OUTPUT")"
+echo
+
+read -p "Proceed with test? (y/n): " confirm
+[[ "$confirm" != "y" && "$confirm" != "Y" ]] && echo "Aborted." && exit 1
 
 # ====== TEST MATRIX ======
 declare -a tests=(
@@ -42,4 +57,6 @@ done
 # ====== CLEANUP ======
 rm -f "$TESTFILE"
 
-echo "Done. Raw benchmark saved to $OUTPUT"
+echo
+echo "✅ Benchmark complete!"
+echo "Results saved to: $(realpath "$OUTPUT")"
