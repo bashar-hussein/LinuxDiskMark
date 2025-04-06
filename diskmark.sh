@@ -34,23 +34,25 @@ run_fio() {
       --iodepth=$QD --numjobs=$NUMJOBS --size=$SIZE --runtime=$RUNTIME \
       --group_reporting --filename=$TESTFILE > "$TEMP_FILE"
 
-  # Extract correct values from "READ:" and "WRITE:" in final summary
-  local R_BW=$(awk '/READ:/{for(i=1;i<=NF;i++) if($i ~ /bw=/){print $(i+1); break}}' "$TEMP_FILE")
-  local R_IOPS=$(awk '/READ:/{for(i=1;i<=NF;i++) if($i ~ /iops=/){print $(i+1); break}}' "$TEMP_FILE")
-  local W_BW=$(awk '/WRITE:/{for(i=1;i<=NF;i++) if($i ~ /bw=/){print $(i+1); break}}' "$TEMP_FILE")
-  local W_IOPS=$(awk '/WRITE:/{for(i=1;i<=NF;i++) if($i ~ /iops=/){print $(i+1); break}}' "$TEMP_FILE")
+  # Extract READ and WRITE blocks from final summary
+  local R_LINE=$(grep "READ:" "$TEMP_FILE")
+  local W_LINE=$(grep "WRITE:" "$TEMP_FILE")
 
-  # Default if missing
+  local R_BW=$(echo "$R_LINE" | awk -F'[,=()]+' '{for(i=1;i<=NF;i++) if($i=="bw") print $(i+1)}')
+  local R_IOPS=$(echo "$R_LINE" | awk -F'[,=()]+' '{for(i=1;i<=NF;i++) if($i=="iops") print $(i+1)}')
+
+  local W_BW=$(echo "$W_LINE" | awk -F'[,=()]+' '{for(i=1;i<=NF;i++) if($i=="bw") print $(i+1)}')
+  local W_IOPS=$(echo "$W_LINE" | awk -F'[,=()]+' '{for(i=1;i<=NF;i++) if($i=="iops") print $(i+1)}')
+
   [[ -z "$R_BW" ]] && R_BW="n/a"
   [[ -z "$R_IOPS" ]] && R_IOPS="n/a"
   [[ -z "$W_BW" ]] && W_BW="n/a"
   [[ -z "$W_IOPS" ]] && W_IOPS="n/a"
 
-  # Write result to summary file
   {
     printf "%-40s\n" "[$DESC]"
-    printf "  READ : %8s [%8s IOPS]\n" "$R_BW" "$R_IOPS"
-    printf "  WRITE: %8s [%8s IOPS]\n\n" "$W_BW" "$W_IOPS"
+    printf "  READ : %-10s [%8s IOPS]\n" "$R_BW" "$R_IOPS"
+    printf "  WRITE: %-10s [%8s IOPS]\n\n" "$W_BW" "$W_IOPS"
   } >> "$FINAL_FILE"
 }
 
