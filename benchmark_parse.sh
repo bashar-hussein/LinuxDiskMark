@@ -1,91 +1,53 @@
 #!/bin/bash
 
-# Input and output file names
 input_file="a.txt"
 output_file="benchmark_data.csv"
 
-# Write CSV header
+# Print CSV header
 echo "Test Name,Block Size,Queue Depth,IOPS (Read),Bandwidth (Read),Latency Avg (Read),IOPS (Write),Bandwidth (Write),Latency Avg (Write)" > "$output_file"
 
-# Initialize variables to hold block data
-test_name=""
-block_size=""
-queue_depth=""
-iops_read=""
-bw_read=""
-latency_read=""
-iops_write=""
-bw_write=""
-latency_write=""
-
-# Variable to track the current section (read or write)
-current_section="none"
-
-# Function to output the current test block (if any)
-output_block() {
-  if [ -n "$test_name" ]; then
-    echo "$test_name,$block_size,$queue_depth,$iops_read,$bw_read,$latency_read,$iops_write,$bw_write,$latency_write" >> "$output_file"
-  fi
-}
-
-# Read the input file line by line
-while IFS= read -r line
-do
-  # Detect header lines that start a new test block
-  if [[ "$line" =~ ^=====\  ]]; then
-    # If we already captured a block, output it first
-    output_block
-
-    # Reset all captured fields for the new block
-    test_name=""
-    block_size=""
-    queue_depth=""
-    iops_read=""
-    bw_read=""
-    latency_read=""
-    iops_write=""
-    bw_write=""
-    latency_write=""
-    current_section="none"
-
-    # Expected header format, e.g.:
+awk '
+/^===== / {
+    # Capture header info from lines like:
     # "===== seq1mq8t1 (randrw bs=1M qd=8 jobs=1) ====="
-    if [[ "$line" =~ ^=====\ ([^[:space:]]+)\ \(randrw\ bs=([^[:space:]]+)\ qd=([0-9]+) ]]; then
-      test_name="${BASH_REMATCH[1]}"
-      block_size="${BASH_REMATCH[2]}"
-      queue_depth="${BASH_REMATCH[3]}"
-    fi
-    continue
-  fi
-
-  # Capture read block
-  if [[ "$line" =~ ^[[:space:]]*read:\ IOPS=([0-9]+),\ BW=([0-9]+MiB/s) ]]; then
-    iops_read="${BASH_REMATCH[1]}"
-    bw_read="${BASH_REMATCH[2]}"
-    current_section="read"
-    continue
-  fi
-
-  # Capture write block
-  if [[ "$line" =~ ^[[:space:]]*write:\ IOPS=([0-9]+),\ BW=([0-9]+MiB/s) ]]; then
-    iops_write="${BASH_REMATCH[1]}"
-    bw_write="${BASH_REMATCH[2]}"
-    current_section="write"
-    continue
-  fi
-
-  # Capture the overall latency from the "lat (usec):" line
-  if [[ "$line" =~ lat\ \(usec\):.*avg=([0-9.]+) ]]; then
-    if [ "$current_section" = "read" ] && [ -z "$latency_read" ]; then
-      latency_read="${BASH_REMATCH[1]}"
-    elif [ "$current_section" = "write" ] && [ -z "$latency_write" ]; then
-      latency_write="${BASH_REMATCH[1]}"
-    fi
-    continue
-  fi
-done < "$input_file"
-
-# Output the final block if present
-output_block
+    if (match($0, /===== ([^ ]+) \(randrw bs=([^ ]+) qd=([0-9]+)/, a)) {
+         test_name = a[1]
+         block_size = a[2]
+         queue_depth = a[3]
+    }
+}
+/^[[:space:]]*read:/ {
+    # Capture the read metrics from lines like:
+    # "  read: IOPS=1615, BW=1616MiB/s (1694MB/s)..."
+    if (match($0, /IOPS=([0-9.]+[kK]?)[,] BW=([^ ]+)/, a)) {
+         iops_read = a[1]
+         bw_read = a[2]
+    }
+}
+/^[[:space:]]*slat \(usec\):/ && iops_read != "" && latency_read == "" {
+    # Capture the read latency from the first slat line following the read line.
+    if (match($0, /avg=[[:space:]]*([0-9.]+)/, a)) {
+         latency_read = a[1]
+    }
+}
+/^[[:space:]]*write:/ {
+    # Capture the write metrics from lines like:
+    # "  write: IOPS=1719, BW=1720MiB/s (1803MB/s)..."
+    if (match($0, /IOPS=([0-9.]+[kK]?)[,] BW=([^ ]+)/, a)) {
+         iops_write = a[1]
+         bw_write = a[2]
+    }
+}
+/^[[:space:]]*slat \(usec\):/ && iops_write != "" && latency_write == "" {
+    # Capture the write latency from its slat line.
+    if (match($0, /avg=[[:space:]]*([0-9.]+)/, a)) {
+         latency_write = a[1]
+         # Once write latency is captured, print out the complete record.
+         printf "%s,%s,%s,%s,%s,%s,%s,%s,%s\n", test_name, block_size, queue_depth, iops_read, bw_read, latency_read, iops_write, bw_write, latency_write
+         # Reset the metric fields for the next test block.
+         iops_read = latency_read = iops_write = latency_write = ""
+    }
+}
+' "$input_file" >> "$output_file"
 
 echo "Data has been exported to '$output_file'."
