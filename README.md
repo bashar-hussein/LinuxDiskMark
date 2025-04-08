@@ -1,3 +1,6 @@
+![License](https://img.shields.io/github/license/ShipwreckIII/LinuxDiskMark)
+![Last Commit](https://img.shields.io/github/last-commit/ShipwreckIII/LinuxDiskMark)
+
 # TrueNAS Benchmark Script
 
 A single bash script to:
