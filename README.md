@@ -29,11 +29,10 @@ A single bash script to:
 ## 🚀 Usage
 
 ```bash
-chmod +x benchmark.sh
-./benchmark.sh
+chmod +x pool_benchmark.sh
+./pool_benchmark.sh
 ```
 Follow the prompts.
-
 
 📁 Output Example
 raw_tank_vm.txt
