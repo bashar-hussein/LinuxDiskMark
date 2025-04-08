@@ -11,7 +11,7 @@ read -p "Enter runtime in seconds (e.g. 5, 10): " RUNTIME
 
 # ====== FILE PATHS ======
 RAW_OUTPUT="raw_${POOL}_${CONTEXT}.txt"
-CSV_OUTPUT="benchmark_data.csv"
+CSV_OUTPUT="${POOL}_${CONTEXT}.csv"
 TESTFILE="./fio_testfile.tmp"
 
 # ====== PREVIEW SUMMARY ======
