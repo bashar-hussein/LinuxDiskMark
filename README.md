@@ -28,8 +28,9 @@ A single bash script to:
 ```bash
 chmod +x benchmark.sh
 ./benchmark.sh
-Follow the prompts.
 ```
+Follow the prompts.
+
 
 📁 Output Example
 raw_tank_vm.txt
