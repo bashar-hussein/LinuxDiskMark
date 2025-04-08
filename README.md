@@ -44,3 +44,7 @@ tank_vm.csv
 The script deletes the test file after the run.
 
 All results are saved in the current working directory.
+
+## 📜 License
+
+This project is licensed under the [MIT License](LICENSE).
